@@ -1,70 +1,135 @@
-
 # SEC-260 Midterm Assessment Playbook
 
 ## Part 1: HTTPS Build (CA + Web Server)
 
 ### Phase 1 — Web Server Setup
+
 ```
 sudo useradd -m YourFirstName && sudo passwd YourFirstName
+```
+```
 sudo usermod -aG wheel YourFirstName
+```
+```
 sudo passwd root
+```
+```
 sudo hostnamectl set-hostname YourLastNameVM
+```
+```
 dnf install -y httpd
+```
+```
 sudo systemctl enable httpd && sudo systemctl start httpd && sudo systemctl status httpd | grep -i active
+```
+```
 sudo firewall-cmd --permanent --add-port=80/tcp && sudo firewall-cmd --reload
+```
+```
 ip addr  # Write down your IP!
 ```
 
+---
+
 ### Phase 2 — CA VM Setup
+
 ```
 sudo hostnamectl set-hostname ca-YourFirstName
+```
+```
 sudo systemctl enable sshd && sudo systemctl start sshd
+```
+```
 sudo firewall-cmd --permanent --add-port=22/tcp && sudo firewall-cmd --reload
+```
+```
 ip addr  # Write down CA's IP!
+```
+```
 openssl genrsa -aes256 -out cakey.pem 2048
+```
+```
 openssl req -new -x509 -days 365 -key cakey.pem -out cacert.pem
 ```
+
 > ⚠ Use **Joyce310** for Organization Name, Org Unit Name, and Common Name!
 
+---
+
 ### Phase 3 — Web Server: Generate Key & CSR
+
 ```
 openssl genrsa -out websrv.key 2048
+```
+```
 openssl req -new -key websrv.key -out websrv.csr
+```
+```
 scp websrv.csr root@CA_IP:/root/
 ```
+
 > ⚠ Use **Joyce310** here too — must match the CA entries!
 
+---
+
 ### Phase 4 — CA: Sign the Certificate
+
 ```
 openssl x509 -req -days 365 -in websrv.csr -CA cacert.pem -CAkey cakey.pem -CAcreateserial -out websrv.crt
+```
+```
 scp websrv.crt root@WEBSERVER_IP:/root/
 ```
 
+---
+
 ### Phase 5 — Web Server: Enable HTTPS
+
 ```
 cp /root/websrv.crt /etc/pki/tls/certs/websrv.crt
+```
+```
 cp /root/websrv.key /etc/pki/tls/private/websrv.key
+```
+```
 dnf install -y mod_ssl
-vi /etc/httpd/conf.d/ssl.conf  # Update the two lines below
-sudo firewall-cmd --permanent --add-port=443/tcp && sudo firewall-cmd --reload
-sudo systemctl restart httpd
+```
+```
+vi /etc/httpd/conf.d/ssl.conf
 ```
 
-In `ssl.conf`, find and update:
+In `ssl.conf`, find and update these two lines:
 ```
 SSLCertificateFile /etc/pki/tls/certs/websrv.crt
 SSLCertificateKeyFile /etc/pki/tls/private/websrv.key
 ```
 
-Test: `curl -k https://YOUR_IP`
-
-### Verification (cat commands for submission)
 ```
-# On CA VM:
-cat /root/cacert.pem
+sudo firewall-cmd --permanent --add-port=443/tcp && sudo firewall-cmd --reload
+```
+```
+sudo systemctl restart httpd
+```
 
-# On Web Server:
+Test it:
+```
+curl -k https://YOUR_IP
+```
+
+---
+
+### Verification — cat Commands for Submission
+
+**On CA VM:**
+```
+cat /root/cacert.pem
+```
+
+**On Web Server:**
+```
 cat /root/websrv.key
+```
+```
 cat /root/websrv.crt
 ```
 
